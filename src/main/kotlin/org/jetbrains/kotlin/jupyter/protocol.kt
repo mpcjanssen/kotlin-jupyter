@@ -212,8 +212,9 @@ class CapturingOutputStream(private val stdout: PrintStream,
 
     override fun flush() {
         if (capturedOutput.size() > 0) {
-            onCaptured(capturedOutput.toString("UTF-8"))
+            val str = capturedOutput.toString("UTF-8")
             capturedOutput.reset()
+            onCaptured(str)
         }
     }
 
@@ -231,19 +232,19 @@ fun JupyterConnection.evalWithIO(body: () -> EvalResult?): ResponseWithMessage {
     val out = System.out
     val err = System.err
 
-    fun getCapturingStream(stream: PrintStream, outType: JupyterOutType): CapturingOutputStream {
+    fun getCapturingStream(stream: PrintStream, outType: JupyterOutType, captureOutput: Boolean): CapturingOutputStream {
         return CapturingOutputStream(
                 stream,
                 config.cellOutputMaxSize,
-                config.captureOutput,
+                captureOutput,
                 config.captureBufferMaxSize,
                 config.captureBufferTimeLimitMs) { text ->
             this.iopub.sendOut(contextMessage!!, outType, text)
         }
     }
 
-    val forkedOut = getCapturingStream(out, JupyterOutType.STDOUT)
-    val forkedError = getCapturingStream(err, JupyterOutType.STDERR)
+    val forkedOut = getCapturingStream(out, JupyterOutType.STDOUT, config.captureOutput)
+    val forkedError = getCapturingStream(err, JupyterOutType.STDERR, false)
 
     System.setOut(PrintStream(forkedOut, true, "UTF-8"))
     System.setErr(PrintStream(forkedError, true, "UTF-8"))
