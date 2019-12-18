@@ -48,7 +48,12 @@ data class KernelConfig(
         val signatureKey: String,
         val pollingIntervalMillis: Long = 100,
         val scriptClasspath: List<File> = emptyList(),
-        val resolverConfig: ResolverConfig?
+        val resolverConfig: ResolverConfig?,
+
+        val captureOutput: Boolean = true,
+        val captureBufferTimeLimitMs: Int = 100,
+        val captureBufferMaxSize: Int = 1000,
+        val cellOutputMaxSize: Int = 100000
 )
 
 val protocolVersion = "5.3"
