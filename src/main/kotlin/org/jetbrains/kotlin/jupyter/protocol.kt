@@ -10,6 +10,7 @@ import java.io.OutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.system.exitProcess
 
 enum class ResponseState {
     Ok, Error
@@ -48,6 +49,10 @@ fun JupyterConnection.Socket.shellMessagesHandler(msg: Message, repl: ReplForJup
                     )))
         "shutdown_request" -> {
             sendWrapped(msg, makeReplyMessage(msg, "shutdown_reply", content = msg.content))
+            Thread.currentThread().interrupt()
+        }
+        "interrupt_request" -> {
+            send(makeReplyMessage(msg, "interrupt_reply", content = msg.content))
             Thread.currentThread().interrupt()
         }
         "connect_request" ->
