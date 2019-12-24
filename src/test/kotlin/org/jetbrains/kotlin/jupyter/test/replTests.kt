@@ -3,12 +3,7 @@ package org.jetbrains.kotlin.jupyter.test
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
 import jupyter.kotlin.MimeTypedResult
-import org.jetbrains.kotlin.jupyter.OutputConfig
-import org.jetbrains.kotlin.jupyter.ReplForJupyter
-import org.jetbrains.kotlin.jupyter.parseResolverConfig
-import org.jetbrains.kotlin.jupyter.readResolverConfig
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
+import org.jetbrains.kotlin.jupyter.*
 import org.jetbrains.kotlin.jupyter.repl.completion.CompletionResultSuccess
 import org.junit.Assert
 import org.junit.Ignore
