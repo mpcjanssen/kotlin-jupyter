@@ -156,7 +156,7 @@ fun JupyterConnection.Socket.logWireMessage(msg: ByteArray) {
 
 fun ByteArray.toHexString(): String = joinToString("", transform = { "%02x".format(it) })
 
-fun ZMQ.Socket.sendMessage(msg: Message, hmac: HMAC): Unit {
+fun ZMQ.Socket.sendMessage(msg: Message, hmac: HMAC) {
     msg.id.forEach { sendMore(it) }
     sendMore(DELIM)
     val signableMsg = listOf(msg.header, msg.parentHeader, msg.metadata, msg.content)
@@ -181,9 +181,13 @@ fun ZMQ.Socket.receiveMessage(start: ByteArray, hmac: HMAC): Message? {
     fun ByteArray.parseJson(): JsonObject =
             Parser().parse(this.inputStream()) as JsonObject
 
-    return Message(ids,
+    val msg = Message(ids,
             header.parseJson(),
             parentHeader.parseJson(),
             metadata.parseJson(),
             content.parseJson())
+
+    println("RECEIVED: $msg")
+
+    return msg
 }

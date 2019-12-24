@@ -3,7 +3,9 @@ package org.jetbrains.kotlin.jupyter.test
 import com.beust.klaxon.JsonObject
 import org.jetbrains.kotlin.jupyter.*
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Before
+import org.junit.BeforeClass
 import org.zeromq.ZMQ
 import java.io.IOException
 import java.net.ServerSocket

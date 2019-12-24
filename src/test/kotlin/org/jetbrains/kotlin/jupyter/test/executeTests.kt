@@ -12,6 +12,7 @@ fun Message.type(): String {
 
 class ExecuteTests : KernelServerTestsBase() {
 
+    @Synchronized
     private fun doExecute(code : String, hasResult: Boolean = true, ioPubChecker : (ZMQ.Socket) -> Unit = {}) : Any? {
         val context = ZMQ.context(1)
         val shell = context.socket(ZMQ.REQ)
@@ -69,6 +70,29 @@ class ExecuteTests : KernelServerTestsBase() {
                 val msg = ioPub.receiveMessage()
                 Assert.assertEquals("stream", msg.type())
                 Assert.assertEquals(i.toString(), msg.content!!["text"])
+            }
+        }
+
+        val res = doExecute(code, false, ::checker)
+        Assert.assertNull(res)
+    }
+
+    @Test
+    fun testOutputMagic(){
+        val code = """
+            %output --max-buffer=2 --max-time=10000
+            for (i in 1..5) {
+                print(i)
+            }
+        """.trimIndent()
+
+        val expected = arrayOf("12","34","5")
+
+        fun checker(ioPub: ZMQ.Socket) {
+            for (el in expected) {
+                val msg = ioPub.receiveMessage()
+                Assert.assertEquals("stream", msg.type())
+                Assert.assertEquals(el, msg.content!!["text"])
             }
         }
 

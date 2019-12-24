@@ -41,6 +41,22 @@ enum class JupyterSockets {
     iopub
 }
 
+data class OutputConfig(
+        var captureOutput: Boolean = true,
+        var captureBufferTimeLimitMs: Int = 100,
+        var captureBufferMaxSize: Int = 1000,
+        var cellOutputMaxSize: Int = 100000,
+        var captureNewlineBufferSize: Int = 100
+) {
+    fun assign(other: OutputConfig) {
+        captureOutput = other.captureOutput
+        captureBufferTimeLimitMs = other.captureBufferTimeLimitMs
+        captureBufferMaxSize = other.captureBufferMaxSize
+        cellOutputMaxSize = other.cellOutputMaxSize
+        captureNewlineBufferSize = other.captureNewlineBufferSize
+    }
+}
+
 data class KernelConfig(
         val ports: Array<Int>,
         val transport: String,
@@ -48,12 +64,7 @@ data class KernelConfig(
         val signatureKey: String,
         val pollingIntervalMillis: Long = 100,
         val scriptClasspath: List<File> = emptyList(),
-        val resolverConfig: ResolverConfig?,
-
-        val captureOutput: Boolean = true,
-        val captureBufferTimeLimitMs: Int = 100,
-        val captureBufferMaxSize: Int = 1000,
-        val cellOutputMaxSize: Int = 100000
+        val resolverConfig: ResolverConfig?
 )
 
 val protocolVersion = "5.3"

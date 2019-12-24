@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.jupyter.test
 
 import org.jetbrains.kotlin.jupyter.CapturingOutputStream
+import org.jetbrains.kotlin.jupyter.OutputConfig
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -14,15 +15,16 @@ class CapturingStreamTests {
     }
 
     private fun getStream(stdout: OutputStream = nullOStream,
-                          maxOutputSize: Int = 1000,
                           captureOutput: Boolean = true,
-                          maxBufferSize: Int = 1000,
                           maxBufferLifeTimeMs: Int = 1000,
+                          maxBufferSize: Int = 1000,
+                          maxOutputSize: Int = 1000,
+                          maxBufferNewlineSize: Int = 1,
                           onCaptured: (String) -> Unit = {}): CapturingOutputStream {
 
         val printStream = PrintStream(stdout, false, "UTF-8")
-        return CapturingOutputStream(printStream, maxOutputSize, captureOutput,
-                maxBufferSize, maxBufferLifeTimeMs, onCaptured)
+        val config = OutputConfig(captureOutput, maxBufferLifeTimeMs, maxBufferSize, maxOutputSize, maxBufferNewlineSize)
+        return CapturingOutputStream(printStream, config, captureOutput, onCaptured)
     }
 
     @Test
@@ -31,10 +33,11 @@ class CapturingStreamTests {
         s.write("kotlin".toByteArray())
     }
 
-    @Test(expected = CapturingOutputStream.OutputLimitExceededException::class)
+    @Test
     fun testMaxOutputSizeError() {
         val s = getStream(maxOutputSize = 3)
         s.write("java".toByteArray())
+        assertArrayEquals("jav".toByteArray(), s.capturedOutput.toByteArray())
     }
 
     @Test
@@ -57,6 +60,23 @@ class CapturingStreamTests {
 
         var i = 0
         val s = getStream(maxBufferSize = 3) {
+            assertEquals(expected[i], it)
+            ++i
+        }
+
+        s.write(contents)
+        s.flush()
+
+        assertEquals(expected.size, i)
+    }
+
+    @Test
+    fun testNewlineBufferSize() {
+        val contents = "12345\n12\n3451234567890".toByteArray()
+        val expected = arrayOf("12345\n", "12\n345", "123456789", "0")
+
+        var i = 0
+        val s = getStream(maxBufferSize = 9, maxBufferNewlineSize = 6) {
             assertEquals(expected[i], it)
             ++i
         }

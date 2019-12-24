@@ -78,7 +78,7 @@ fun JupyterConnection.Socket.shellMessagesHandler(msg: Message, repl: ReplForJup
             val res: ResponseWithMessage = if (isCommand(code.toString())) {
                 runCommand(code.toString(), repl)
             } else {
-                connection.evalWithIO {
+                connection.evalWithIO (repl?.outputConfig) {
                     repl?.eval(code.toString(), count.toInt())
                 }
             }
@@ -171,24 +171,24 @@ fun JupyterConnection.Socket.shellMessagesHandler(msg: Message, repl: ReplForJup
 }
 
 class CapturingOutputStream(private val stdout: PrintStream,
-                            private val maxOutputSize: Int,
+                            private val conf: OutputConfig,
                             private val captureOutput: Boolean,
-                            private val maxBufferSize: Int,
-                            private val maxBufferLifeTimeMs: Int,
                             val onCaptured: (String) -> Unit) : OutputStream() {
     val capturedOutput = ByteArrayOutputStream()
     private var time = System.currentTimeMillis()
     private var overallOutputSize = 0
+    private var newlineFound = false
 
     private fun shouldSend(b: Int): Boolean {
         val c = b.toChar()
-        if (c == '\n' || c == '\r')
+        newlineFound = newlineFound || c == '\n' || c == '\r'
+        if (newlineFound && capturedOutput.size() >= conf.captureNewlineBufferSize)
             return true
-        if (capturedOutput.size() >= maxBufferSize)
+        if (capturedOutput.size() >= conf.captureBufferMaxSize)
             return true
 
         val currentTime = System.currentTimeMillis()
-        if (currentTime - time >= maxBufferLifeTimeMs) {
+        if (currentTime - time >= conf.captureBufferTimeLimitMs) {
             time = currentTime
             return true
         }
@@ -196,13 +196,10 @@ class CapturingOutputStream(private val stdout: PrintStream,
     }
 
     override fun write(b: Int) {
-        if (++overallOutputSize > maxOutputSize) {
-            throw OutputLimitExceededException()
-        }
-
+        ++overallOutputSize
         stdout.write(b)
 
-        if (captureOutput) {
+        if (captureOutput && overallOutputSize <= conf.cellOutputMaxSize) {
             capturedOutput.write(b)
             if (shouldSend(b)) {
                 flush()
@@ -211,14 +208,13 @@ class CapturingOutputStream(private val stdout: PrintStream,
     }
 
     override fun flush() {
+        newlineFound = false
         if (capturedOutput.size() > 0) {
             val str = capturedOutput.toString("UTF-8")
             capturedOutput.reset()
             onCaptured(str)
         }
     }
-
-    class OutputLimitExceededException(message: String = "Cell output limit exceeded"): Exception(message)
 }
 
 fun Any.toMimeTypedResult(): MimeTypedResult? = when (this) {
@@ -228,17 +224,16 @@ fun Any.toMimeTypedResult(): MimeTypedResult? = when (this) {
     else -> textResult(this.toString())
 }
 
-fun JupyterConnection.evalWithIO(body: () -> EvalResult?): ResponseWithMessage {
+fun JupyterConnection.evalWithIO(maybeConfig: OutputConfig?, body: () -> EvalResult?): ResponseWithMessage {
     val out = System.out
     val err = System.err
+    val config = maybeConfig ?: OutputConfig()
 
     fun getCapturingStream(stream: PrintStream, outType: JupyterOutType, captureOutput: Boolean): CapturingOutputStream {
         return CapturingOutputStream(
                 stream,
-                config.cellOutputMaxSize,
-                captureOutput,
-                config.captureBufferMaxSize,
-                config.captureBufferTimeLimitMs) { text ->
+                config,
+                captureOutput) { text ->
             this.iopub.sendOut(contextMessage!!, outType, text)
         }
     }
@@ -246,8 +241,8 @@ fun JupyterConnection.evalWithIO(body: () -> EvalResult?): ResponseWithMessage {
     val forkedOut = getCapturingStream(out, JupyterOutType.STDOUT, config.captureOutput)
     val forkedError = getCapturingStream(err, JupyterOutType.STDERR, false)
 
-    System.setOut(PrintStream(forkedOut, true, "UTF-8"))
-    System.setErr(PrintStream(forkedError, true, "UTF-8"))
+    System.setOut(PrintStream(forkedOut, false, "UTF-8"))
+    System.setErr(PrintStream(forkedError, false, "UTF-8"))
 
     val `in` = System.`in`
     System.setIn(stdinIn)
